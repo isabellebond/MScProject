@@ -1,0 +1,6 @@
+pandas==1.2.2
+matplotlib==3.2
+plotly==5.0.0
+geojson==2.5.0
+geojson-rewind==1.0.1
+scikit-learn==0.24.2
