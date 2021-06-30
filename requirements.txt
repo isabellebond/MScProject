@@ -4,3 +4,4 @@ plotly==5.0.0
 geojson==2.5.0
 geojson-rewind==1.0.1
 scikit-learn==0.24.2
+dvc==2.4.3
