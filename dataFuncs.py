@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import numpy as np
+import json
 
 
 #Initialise repositories
@@ -12,7 +13,7 @@ _rawdir = os.path.join(_datadir, 'rawdata')
 
 
         
-def excel_to_pd(filename, directory, sheetnumber = 0, headernumber = 1, Skiprows = None, indexcol = None):
+def excel_to_pd(filename, directory, sheetnumber = 0, headernumber = 0, Skiprows = None, indexcol = None):
     """
     Create a pandas dataframe of specified excel spreadsheet
 
@@ -47,8 +48,9 @@ class RawData:
 
     def __init__(self, dataframe):
         self.dataframe = dataframe
+        self.reference = {}
 
-    def convert_to_bool(self, columnname, YesNo = False):
+    def convert_to_bool(self, columnname, title, YesNo = False):
 
         """
         Converts all values in a column to boolean bit values 
@@ -80,10 +82,10 @@ class RawData:
                     else:
                         column = np.append(column, 1)
                 self.dataframe[i] = column
-    
+                self.reference[title] = "bool"
         return self.dataframe
 
-    def convert_to_int(self, columnname):
+    def convert_to_int(self, columnname, title):
         """
         Converts all values in a column to integer values.
         Each unique string is assigned an integer value and added to a dictionary.
@@ -98,7 +100,6 @@ class RawData:
                 dataframe: dataframe with updated column values
                 reference (dict): Dictionary with key-value pairs to decode 
         """
-
         reference = {}
         k = 0 #value of interger pointer to dictionary value 
 
@@ -115,10 +116,11 @@ class RawData:
                     column = np.append(column, j)
     
             self.dataframe[i] = column
+            self.reference[title] = reference
 
-        return self.dataframe, reference
+        return self.dataframe, self.reference
 
-    def binarize_target_WCC_total(self):
+    def binarize_target_WCC_total(self, csv_name):
         """
         Creates target data for Westminster City Council survey
         Takes answers to Q10 and 14 to work out digital exclusion
@@ -133,9 +135,10 @@ class RawData:
                 dataframe: dataframe with updated column values
         """
         digitallyExcluded = np.array([])
+        dataframe = self.dataframe
 
         #If people have no devices to access the internet count as digitally excluded
-        for i in self.dataframe.loc[:, "Q10i"]:
+        for i in dataframe.loc[:, "Q10i"]:
             if pd.isnull(i):
                 digitallyExcluded = np.append(digitallyExcluded, 0)
             else:
@@ -148,7 +151,7 @@ class RawData:
         #Create array indicative of whether people choose to get info via online means, value of 1 is yes
         for i in onlineInfo:
             column = np.array([])
-            for j in self.dataframe.loc[:, i]:
+            for j in dataframe.loc[:, i]:
                 if pd.isnull(j):
                     column = np.append(column, 0)
                 else:
@@ -183,15 +186,17 @@ class RawData:
                     digitallyExcluded[i] = 1
 
         #Add new "Target" column to WCC Survey dataframe
-        self.dataframe = self.dataframe.drop(["Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j",
+        dataframe = dataframe.drop(["case","Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j",
                                     "Q14a","Q14b", "Q14c","Q14d","Q14e","Q14f","Q14g","Q14h","Q14i","Q14j","Q14k","Q14l","Q14m"], axis = 1)
 
-        self.dataframe.insert(0,"Target",digitallyExcluded)
+        dataframe.insert(0,"Target",digitallyExcluded)
 
+        dataframe.to_csv(os.path.join(_preprocesseddir,"%s.csv"%csv_name))
+        json.dump(self.reference,open(os.path.join(_preprocesseddir,"%s.json"%csv_name),"w"), indent=2)
 
-        return self.dataframe
+        return
 
-    def binarize_target_WCC_mobile(self):
+    def binarize_target_WCC_mobile(self, csv_name):
         """
         Creates target data for Westminster City Council survey
         Takes answers to Q10 and if only use mobile phone to access the internet, count as digitally excluded
@@ -204,13 +209,14 @@ class RawData:
             Return:
                 dataframe: dataframe with updated column values
         """
-   
-        onlineInfo = ["Q10a","Q10c","Q10d","Q10f","Q10g"]
-        self.dataframe = convert_to_bool(self.dataframe,onlineInfo)
-        dataframe_target = self.dataframe[onlineInfo]
+        dataframe = self.convert_to_bool(["Q10a","Q10c","Q10d","Q10f","Q10g"],"Q10, Target")
+        dataframe_target = dataframe[["Q10a","Q10c","Q10d","Q10f","Q10g"]]
         digitallyExcluded = (np.sign(dataframe_target.sum(axis = 1)) +1 ) % 2 
-        self.dataframe = self.dataframe.drop(["Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j"], axis = 1)
-        self.dataframe.insert(0,"Target",digitallyExcluded)
+        dataframe = dataframe.drop(["case","Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j"], axis = 1)
+        dataframe.insert(0,"Target",digitallyExcluded)
+
+        dataframe.to_csv(os.path.join(_preprocesseddir,"%s.csv"%csv_name))
+        json.dump(self.reference,open(os.path.join(_preprocesseddir,"%s.json"%csv_name),"w"), indent=2)
 
         return self.dataframe
 
@@ -244,10 +250,13 @@ class RawData:
                 digitallyExcluded[i] = 0
                 
 
-        dataframe = dataframe.drop(["Perc_Premises_below_30Mbits", "Perc_Gigabit_availability"], axis = 1)
-        dataframe.insert(2,"Target",digitallyExcluded)
+        self.dataframe = self.dataframe.drop(["Perc_Premises_below_30Mbits", "Perc_Gigabit_availability"], axis = 1)
+        self.dataframe.insert(2,"Target",digitallyExcluded)
 
-        return dataframe
+        self.dataframe = self.dataframe.convert_to_bool(['Q14a', 'Q14b', 'Q14c', 'Q14d', 'Q14e', 'Q14f',
+       'Q14g', 'Q14h', 'Q14i', 'Q14j', 'Q14k', 'Q14l', 'Q14m'])
+
+        return self.dataframe
 
     def delete_flag_removal(self):
         """
