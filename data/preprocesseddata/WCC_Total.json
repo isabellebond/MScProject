@@ -3,17 +3,6 @@
     "Female": 0,
     "Male": 1
   },
-  "Age": {
-    "65 - 74": 0,
-    "25 - 34": 1,
-    "50 - 54": 2,
-    "35 - 44": 3,
-    "45 - 49": 4,
-    "16 - 24": 5,
-    "75+": 6,
-    "55 - 59": 7,
-    "60 - 64": 8
-  },
   "Work Status, Q3": {
     "Unemployed, Not Registered-Seeking Work": 0,
     "Working - Full Time (30+ HRS)": 1,

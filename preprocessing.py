@@ -16,7 +16,6 @@ data = dataFuncs.RawData(WCC_Survey)
 print(data, data.dataframe.head())
 #Categorise each column and create dictionary for each value
 data.convert_to_int(["S1"], "Gender, S1")
-data.convert_to_int(["AGE"], "Age")
 data.convert_to_int(["Q3"],"Work Status, Q3")
 data.convert_to_int(["Q4"], "Ethnicity, Q4")
 data.convert_to_int(["Q5a","Q5b","Q5c","Q5d","Q5e","Q5f","Q5g","Q5h","Q5i","Q5j","Q5k","Q5l"], "Concerns, Q5")

@@ -186,7 +186,7 @@ class RawData:
                     digitallyExcluded[i] = 1
 
         #Add new "Target" column to WCC Survey dataframe
-        dataframe = dataframe.drop(["case","Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j",
+        dataframe = dataframe.drop(["Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j",
                                     "Q14a","Q14b", "Q14c","Q14d","Q14e","Q14f","Q14g","Q14h","Q14i","Q14j","Q14k","Q14l","Q14m"], axis = 1)
 
         dataframe.insert(0,"Target",digitallyExcluded)
@@ -212,7 +212,7 @@ class RawData:
         dataframe = self.convert_to_bool(["Q10a","Q10c","Q10d","Q10f","Q10g"],"Q10, Target")
         dataframe_target = dataframe[["Q10a","Q10c","Q10d","Q10f","Q10g"]]
         digitallyExcluded = (np.sign(dataframe_target.sum(axis = 1)) +1 ) % 2 
-        dataframe = dataframe.drop(["case","Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j"], axis = 1)
+        dataframe = dataframe.drop(["Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j"], axis = 1)
         dataframe.insert(0,"Target",digitallyExcluded)
 
         dataframe.to_csv(os.path.join(_preprocesseddir,"%s.csv"%csv_name))
@@ -220,7 +220,7 @@ class RawData:
 
         return self.dataframe
 
-    def binarize_target_Ofcom(self):
+    def binarize_target_Ofcom(self, csv_name):
         """
         Creates target data for Ofcom data set
         = 0 if >80% have internet speed >30MBs-1 or >50% have internet speed > 1GBs-1
@@ -235,6 +235,7 @@ class RawData:
             Return:
                     dataframe: dataframe with updated column values
         """
+        dataframe = self.dataframe
         digitallyExcluded = np.array([])
 
         #If people have no devices to access the internet count as digitally excluded
@@ -251,10 +252,13 @@ class RawData:
                 
 
         self.dataframe = self.dataframe.drop(["Perc_Premises_below_30Mbits", "Perc_Gigabit_availability"], axis = 1)
+        print(self.dataframe.head())
         self.dataframe.insert(2,"Target",digitallyExcluded)
+        print(self.dataframe.head())
 
-        self.dataframe = self.dataframe.convert_to_bool(['Q14a', 'Q14b', 'Q14c', 'Q14d', 'Q14e', 'Q14f',
-       'Q14g', 'Q14h', 'Q14i', 'Q14j', 'Q14k', 'Q14l', 'Q14m'])
+        self.dataframe.to_csv(os.path.join(_preprocesseddir,"%s.csv"%csv_name))
+        json.dump(self.reference,open(os.path.join(_preprocesseddir,"%s.json"%csv_name),"w"), indent=2)
+
 
         return self.dataframe
 
@@ -268,24 +272,24 @@ class RawData:
                     dataframe: dataframe with deleted rows
         """
 
-        for i in range(0,len(dataframe.loc[:, "Deleted"])):
-            if dataframe.loc[i, "Deleted"] == 1:
-                dataframe = dataframe.drop(i, axis = 0)
+        for i in range(0,len(self.dataframe.loc[:, "Deleted"])):
+            if self.dataframe.loc[i, "Deleted"] == 1:
+                self.dataframe = self.dataframe.drop(i, axis = 0)
             try:
-                if dataframe.loc[i, "Total population"] == 0:
-                    dataframe = dataframe.drop(i, axis = 0)
+                if self.dataframe.loc[i, "Total population"] == 0:
+                    self.dataframe = self.dataframe.drop(i, axis = 0)
             except KeyError:
                 pass
             
                     
-        dataframe = dataframe.drop("Deleted", axis = 1)
+        self.dataframe = self.dataframe.drop("Deleted", axis = 1)
 
         try:
-            dataframe = dataframe.drop("Total population", axis = 1)
+            self.dataframe = self.dataframe.drop("Total population", axis = 1)
         except KeyError:
             pass
         
-        return dataframe
+        return self.dataframe
 
     def column_combine(self,columnname,newcolumnname):
         """
@@ -302,15 +306,15 @@ class RawData:
             Return:
                     dataframe: dataframe with updated column values
         """
-        sum_column = dataframe["%s"%columnname[0]]
-        dataframe = dataframe.drop(columnname[0], axis = 1)
+        sum_column = self.dataframe["%s"%columnname[0]]
+        dataframe = self.dataframe.drop(columnname[0], axis = 1)
 
         for i in range(1,len(columnname)):
             sum_column = sum_column + dataframe[columnname[i]]
-            dataframe = dataframe.drop(columnname[i], axis = 1)
+            dataframe = self.dataframe.drop(columnname[i], axis = 1)
         
-        dataframe[newcolumnname] = sum_column
-        return dataframe
+        self.dataframe[newcolumnname] = sum_column
+        return self.dataframe
 
     def dataset_combine(self, other, combinecolumn):
         """
@@ -329,7 +333,7 @@ class RawData:
         #Make sure all strings in combine column are in the same format - remove whitespace"
         self.dataframe[combinecolumn] = self.dataframe[combinecolumn].str.replace(" ","")
         other.dataframe[combinecolumn] =  other.dataframe[combinecolumn].str.replace(" ","")
-    
+
         #Combine dataframes
         self.dataframe = self.dataframe.merge(other.dataframe, how = "inner", on = combinecolumn)
         return self.dataframe
