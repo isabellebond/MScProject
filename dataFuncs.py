@@ -212,10 +212,10 @@ class RawData:
         dataframe = self.convert_to_bool(["Q10a","Q10c","Q10d","Q10f","Q10g"],"Q10, Target")
         dataframe_target = dataframe[["Q10a","Q10c","Q10d","Q10f","Q10g"]]
         digitallyExcluded = (np.sign(dataframe_target.sum(axis = 1)) +1 ) % 2 
-        dataframe = dataframe.drop(["Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j"], axis = 1)
-        dataframe.insert(0,"Target",digitallyExcluded)
+        self.dataframe = self.dataframe.drop(["Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j"], axis = 1)
+        self.dataframe.insert(0,"Target",digitallyExcluded)
 
-        dataframe.to_csv(os.path.join(_preprocesseddir,"%s.csv"%csv_name))
+        self.dataframe.to_csv(os.path.join(_preprocesseddir,"%s.csv"%csv_name))
         json.dump(self.reference,open(os.path.join(_preprocesseddir,"%s.json"%csv_name),"w"), indent=2)
 
         return self.dataframe
@@ -261,7 +261,8 @@ class RawData:
 
 
         return self.dataframe
-
+    
+    
     def delete_flag_removal(self):
         """
         Removes rows with delete flag set to 1 or with zero population
