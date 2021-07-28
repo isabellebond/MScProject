@@ -186,15 +186,15 @@ class RawData:
                     digitallyExcluded[i] = 1
 
         #Add new "Target" column to WCC Survey dataframe
-        dataframe = dataframe.drop(["Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j",
+        self.dataframe = dataframe.drop(["Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j",
                                     "Q14a","Q14b", "Q14c","Q14d","Q14e","Q14f","Q14g","Q14h","Q14i","Q14j","Q14k","Q14l","Q14m"], axis = 1)
 
-        dataframe.insert(0,"Target",digitallyExcluded)
+        self.dataframe.insert(0,"Target",digitallyExcluded)
 
-        dataframe.to_csv(os.path.join(_preprocesseddir,"%s.csv"%csv_name))
+        self.dataframe.to_csv(os.path.join(_preprocesseddir,"%s.csv"%csv_name))
         json.dump(self.reference,open(os.path.join(_preprocesseddir,"%s.json"%csv_name),"w"), indent=2)
-
-        return
+        print(self.dataframe.head())
+        return self.dataframe
 
     def binarize_target_WCC_mobile(self, csv_name):
         """

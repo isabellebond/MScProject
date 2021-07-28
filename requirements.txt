@@ -6,3 +6,4 @@ geojson-rewind==1.0.1
 scikit-learn==0.24.2
 dvc[gdrive]==2.4.3
 openpyxl==3.0.7
+imblearn==0.0

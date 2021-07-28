@@ -10,7 +10,7 @@ _preprocesseddir = os.path.join(_datadir, 'preprocesseddata')
 _rawdir = os.path.join(_datadir, 'rawdata')
 
 #Create dataframe of WCC Survey data
-WCC_Survey = dataFuncs.excel_to_pd("WCC2020", _preprocesseddir)
+WCC_Survey = dataFuncs.excel_to_pd("WCC2020Num", _preprocesseddir)
 
 data = dataFuncs.RawData(WCC_Survey)
 print(data, data.dataframe.head())
@@ -41,7 +41,7 @@ data.convert_to_int(["Ward"], "Ward")
 data.convert_to_int(["OutputArea"], "OutputArea")
 
 data.dataframe = data.dataframe.drop(["Q27a","Q28a","Q37b","Q37c","Q37d","Q37e","CategoryType","WellbeingType","AcornTypeCode","LowerSuperOutput","weight"], axis = 1)
-data.binarize_target_WCC_mobile("WCC_Mobile")
+#data.binarize_target_WCC_mobile("WCC_Mobile")
 data.binarize_target_WCC_total("WCC_Total")
 
-WCC_Survey.to_csv(os.path.join(_preprocesseddir,"WCCSurvey_mobile.csv"))
+data.dataframe.to_csv(os.path.join(_preprocesseddir,"WCCSurvey_tot.csv"))
