@@ -3,16 +3,15 @@ import os
 import numpy as np
 import json
 
+from pandas._libs.tslibs.timedeltas import ints_to_pytimedelta
+
 
 #Initialise repositories
 _projroot = os.path.abspath('.')
 _datadir = os.path.join(_projroot, 'data')
 _preprocesseddir = os.path.join(_datadir, 'preprocesseddata')
 _rawdir = os.path.join(_datadir, 'rawdata')
-
-
-
-        
+       
 def excel_to_pd(filename, directory, sheetnumber = 0, headernumber = 0, Skiprows = None, indexcol = None):
     """
     Create a pandas dataframe of specified excel spreadsheet
@@ -70,8 +69,10 @@ class RawData:
                 for j in self.dataframe.loc[:, i]:
                     if j == "No":
                         column = np.append(column, 0)
-                    else:
+                    elif j == "Yes":
                         column = np.append(column, 1)
+                    else:
+                        column = np.append(column, np.nan)
                 self.dataframe[i] = column
         else:
             for i in columnname:
@@ -85,7 +86,8 @@ class RawData:
                 self.reference[title] = "bool"
         return self.dataframe
 
-    def convert_to_int(self, columnname, title):
+    def convert_to_int(self, columnname, title, reference = {}):
+
         """
         Converts all values in a column to integer values.
         Each unique string is assigned an integer value and added to a dictionary.
@@ -94,14 +96,13 @@ class RawData:
             Parameters:
                 dataframe
                 columnname (list): name of columns in dataframe to convert
-                YesNo (bool): True if column values are in Yes/No form
+                order (dict): If specified interger-string pairs are required, add this to reference
         
             Return:
                 dataframe: dataframe with updated column values
                 reference (dict): Dictionary with key-value pairs to decode 
         """
-        reference = {}
-        k = 0 #value of interger pointer to dictionary value 
+        k = 0 #value of integer pointer to dictionary value 
 
         for i in columnname:
             column = np.array([])
@@ -119,6 +120,66 @@ class RawData:
             self.reference[title] = reference
 
         return self.dataframe, self.reference
+    
+    def one_hot_encode(self, columnname, column_prefix = None, drop_other = False):
+
+        one_hot = pd.get_dummies(self.dataframe[columnname], prefix = column_prefix)
+        self.dataframe = self.dataframe.join(one_hot)
+        self.dataframe.drop(columnname, axis = 1, inplace = True)
+        if drop_other ==  True:
+            try:
+                self.dataframe.drop('%s_other'%column_prefix, axis = 1, inplace = True)
+            except KeyError:
+                pass 
+        
+        return self.dataframe
+
+    def cat_combine(self, columname, old_response, new_response = 'other'):
+        """
+        Combines multiple categorical responses into one
+
+            Parameters:
+                dataframe
+                columnname(str): name of column in dataframe to apply function to
+                old_response(list or int): 
+                    if list: list of strings to combine into new response
+                    if int: threshold value, all response with less than int occurances will be combined into new response
+                new_response(str): new name for combined response
+
+            Return:
+                dataframe: dataframe with updated column values
+        """
+
+        if type(old_response) == list:
+            self.dataframe[columname] = self.dataframe[columname].apply(lambda x:x if x not in old_response else new_response)
+        else: 
+            #replace categories with < old_reponse answers with new_response
+            replace = []
+            counts = self.dataframe[columname].value_counts()
+            for index, value in counts.items():
+                if value < old_response:
+                    replace.append(index)
+            self.dataframe[columname] = self.dataframe[columname].apply(lambda x:x if x not in replace else new_response)
+        
+        return self.dataframe
+            
+
+    def set_nan(self, columname, NaN_values):
+
+        for column in columname:
+            self.dataframe[column] = self.dataframe[column].apply(lambda x:x if x not in NaN_values else np.nan)
+        return self.dataframe
+    
+    def sum_columns(self, columname, new_columname):
+        self.dataframe[columname].fillna(0)
+        self.dataframe[new_columname] = self.dataframe[columname].sum(axis = 1)
+        self.dataframe.drop(columname, axis = 1, inplace = True)
+        return self.dataframe
+    
+    def mean_columns(self, columname, new_columname):
+        self.dataframe[new_columname] = self.dataframe[columname].mean(axis=1, skipna = True)
+        self.dataframe.drop(columname, axis = 1, inplace = True)
+        return self.dataframe
 
     def binarize_target_WCC_total(self, csv_name):
         """
@@ -261,7 +322,6 @@ class RawData:
 
 
         return self.dataframe
-    
     
     def delete_flag_removal(self):
         """
