@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import numpy as np
 import json
+import pgeocode
 
 from pandas._libs.tslibs.timedeltas import ints_to_pytimedelta
 
@@ -121,6 +122,15 @@ class RawData:
 
         return self.dataframe, self.reference
     
+    def convert_to_latlong(self, columname):
+        geo = pgeocode.Nominatim('gb')
+        self.dataframe[columname] = self.dataframe[columname].apply(lambda x:' '.join([x[0:len(x)-3],x[len(x)-3:]]))
+        #print(self.dataframe[columname])
+        self.dataframe['latitude'] = geo.query_postal_code(self.dataframe[columname].values)['latitude']
+        self.dataframe['longitude'] = geo.query_postal_code(self.dataframe[columname].values)['longitude']
+        self.dataframe.drop(columname, axis = 1, inplace = True)
+        return
+
     def one_hot_encode(self, columnname, column_prefix = None, drop_other = False):
 
         one_hot = pd.get_dummies(self.dataframe[columnname], prefix = column_prefix)

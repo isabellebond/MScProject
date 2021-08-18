@@ -25,6 +25,8 @@
     "NaN": 20
   },
   "Q8 services": "bool",
+  "Q12 Online": "bool",
+  "Q12 Offline": "bool",
   "Q26 Worry": "bool",
   "Q31 - GP": {
     "Private GP in Westminster/Elsewhere": 2,

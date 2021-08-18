@@ -3,6 +3,7 @@ import os
 import numpy as np
 import json
 from collections import Counter
+import joblib
 from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 from imblearn.under_sampling import NeighbourhoodCleaningRule
@@ -12,8 +13,13 @@ from imblearn.under_sampling import ClusterCentroids
 from imblearn.under_sampling import NeighbourhoodCleaningRule
 from imblearn.over_sampling import SMOTE
 from imblearn.over_sampling import SMOTENC
-
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LogisticRegression
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+from openpyxl import Workbook
 import pylab as pl
+from sklearn.metrics import f1_score, recall_score, roc_auc_score
 
 #Initialise repositories
 _projroot = os.path.abspath('.')
@@ -46,14 +52,20 @@ def csv_to_pd(filename, directory, headernumber = 0):
     return dataframe
 
 class Sampling():
-    def __init__(self, dataframe):
+    def __init__(self, dataframe, directory):
         self.dataframe = dataframe
-        self.reference = {}
-        self.target = self.dataframe['Target']
-        self.features = self.dataframe.drop('Target', axis = 1)
-        self.X_mean = None
+        self.dir = directory
+        self.target = {}
+        self.features = {}
+        self.results = {}
+        self.models = {}
+        self.missingValues = {}
+        self.quantityChange = {}
+        self.metrics = {}
+        self.target['original'] = self.dataframe['Target']
+        self.features['original'] = self.dataframe.drop('Target', axis = 1)
     
-    def normalise(self, inplace = False):
+    def normalise(self):
         """
         Create new dataframe with all continuous features normalised.
 
@@ -64,12 +76,13 @@ class Sampling():
                 normdata: dataframe with normalised column values
         """
         cont = list(set(list(self.dataframe.select_dtypes(exclude=['object']).columns))-set(['Target']))
-        self.normalised = self.dataframe[cont]/self.dataframe[cont].max()
+        feature_norm = self.dataframe[cont]/self.dataframe[cont].max()
+        target_norm = self.target['original']/self.target['original'].max()
         
-        if inplace == True:
-            self.features[cont] = self.normalised
-            print(self.features[cont])
-        return self.normalised
+        self.features['normalised'] = feature_norm
+        self.target['normalised'] = target_norm
+
+        return
     
     def list_cat_features(self):
         """
@@ -90,7 +103,7 @@ class Sampling():
 
         return self.catfeatures
 
-    def train_test_split(self, testsize, randomstate = None):
+    def train_test_split(self, testsize, randomstate = None, data = 'imputed'):
         """Splits self.dataframe using sklearn.train_test_split
         Creates new class attributes X_train, y_train, X_test, y_test
             Parameters:
@@ -104,11 +117,22 @@ class Sampling():
                 self.y_train(dataframe): target for training data
                 self.y_test(dataframe): target vectors for test data
         """
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.features, self.target, test_size=testsize, random_state=randomstate)
+        self.features['train_test_split'], self.features['test_data'], self.target['train_test_split'], self.target['test_data'] = train_test_split(self.features[data], self.target[data], test_size=testsize, random_state=randomstate)
         
-        return self.X_train, self.X_test, self.y_train, self.y_test
+        return
+    
+    def impute(self, name = 'imputed', data = 'normalised'):
 
-    def data_split(self, filename = None, foldername = None):
+        imp = IterativeImputer(max_iter=100, random_state=0)
+        impfit = imp.fit_transform(self.features[data])
+    
+        self.features[name] = pd.DataFrame(impfit, columns = list(self.features['normalised'].columns))
+        self.target[name] = self.target[data]
+        self.missingValues[name] = imp.indicator_
+        
+        return 
+
+    def data_split(self, ratio = 0.25, dataIn = 'train_test_split', dataOut = 'split data'):
         """
         Divides total features in majority class into four smaller sub datasets.
         Appends all features in minority class into new subsets of data
@@ -123,46 +147,65 @@ class Sampling():
         """
         class1 = []
         class2 = []
-        for i in range(0,len(self.y_train.ravel())):
-            if self.y_train.ravel()[i] == 0:
+        for i in range(0,len(self.target[dataIn])):
+            if self.target[dataIn][i] == 0:
                 class1.append(i)
             else:
                 class2.append(i)
 
-        print(type(self.X_train))
-
-        X_class1 = self.X_train.iloc[class1,:]
-        X_class2 = self.X_train.iloc[class2,:]
+        X_class1 = self.features[dataIn].iloc[class1,:]
+        X_class2 = self.features[dataIn].iloc[class2,:]
         y_class2 = np.ones((len(class2),1))
 
-            
-        Xa,Xb = train_test_split(X_class1, test_size = 0.5)
-        X1, X2 = train_test_split(Xa, test_size = 0.5)
-        X3, X4 = train_test_split(Xb, test_size = 0.5)
+        if ratio == 0.25:
+            Xa,Xb = train_test_split(X_class1, test_size = 0.5)
+            X1, X2 = train_test_split(Xa, test_size = 0.5)
+            X3, X4 = train_test_split(Xb, test_size = 0.5)
 
-        X = [X1,X2,X3,X4]
-        k = 1
+            X = [X1,X2,X3,X4]
+            k = 1
+            for item in X:
+                y_class1 = np.zeros((len(item),1))
+                self.target['%s_%s'%(dataOut, k)] = pd.DataFrame(data = np.append(y_class1, y_class2, axis = 0), columns = ['Target'])
+                X_new = np.append(item, X_class2, axis = 0)
+                self.features['%s_%s'%(dataOut, k)] = pd.DataFrame(data = X_new, columns = self.features[dataIn].columns)
+                k+=1
+                #df[column] = df[column].apply( lambda x: np.nan if x == self.X_mean.get(column) else x)
+        
+        elif ratio == 0.5:
+            Xa,Xb = train_test_split(X_class1, test_size = 0.5)
 
-        path = os.path.join(_preprocesseddir,foldername)
-        path2 = os.path.join(path,"splitdata")
-        if not os.path.exists(path):
-            os.mkdir(path)
-        if not os.path.exists(path2):
-            os.mkdir(path2)
-        for item in X:
-            y_class1 = np.zeros((len(item),1))
-            y_tot = np.append(y_class1, y_class2, axis = 0)
-            X_new = np.append(item, X_class2, axis = 0)
-            data_tot = np.append(y_tot, X_new, axis = 1)
-            df = pd.DataFrame(data = data_tot, columns = self.features.columns.insert(0,"Target"))
-            print(self.X_mean.keys())
-            for column in self.X_mean.keys():
-                print(column)
-                df[column] = df[column].apply( lambda x: np.nan if x == self.X_mean.get(column) else x)
+            X = [Xa,Xb]
+            k = 1
+            for item in X:
+                y_class1 = np.zeros((len(item),1))
+                self.target['%s_%s'%(dataOut, k)] = pd.DataFrame(data = np.append(y_class1, y_class2, axis = 0), columns = ['Target'])
+                X_new = np.append(item, X_class2, axis = 0)
+                self.features['%s_%s'%(dataOut, k)] = pd.DataFrame(data = X_new, columns = self.features[dataIn].columns)
+                k+=1
+        
+        elif ratio == 0.125: 
+            Xa,Xb = train_test_split(X_class1, test_size = 0.5)
 
-            df.to_csv(os.path.join(path2,"%s-%s.csv"%(filename,k)))
-            #self.PCA_plot("%s-%s"%(filename,k),"%s-%s"%(filename,k))
-            k+=1
+            Xz, Xy = train_test_split(Xa, test_size = 0.5)
+            Xx, Xw = train_test_split(Xb, test_size = 0.5)
+
+            X1, X2 = train_test_split(Xz, test_size = 0.5)
+            X3, X4 = train_test_split(Xy, test_size = 0.5)
+            X5, X6 = train_test_split(Xx, test_size = 0.5)
+            X7, X8 = train_test_split(Xw, test_size = 0.5)
+
+            X = [X1,X2,X3,X4,X5,X6,X7,X8]
+            k = 1
+            for item in X:
+                y_class1 = np.zeros((len(item),1))
+                self.target['%s_%s'%(dataOut, k)] = pd.DataFrame(data = np.append(y_class1, y_class2, axis = 0), columns = ['Target'])
+                X_new = np.append(item, X_class2, axis = 0)
+                self.features['%s_%s'%(dataOut, k)] = pd.DataFrame(data = X_new, columns = self.features[dataIn].columns)
+                k+=1
+        
+        else:
+            raise ValueError('Unaccepted value for ratio. Ratio must be 0.125, 0.25 or 0.5.')
 
         return
 
@@ -238,7 +281,7 @@ class Sampling():
 
         return
 
-    def tomek_links(self, figname = 'Tomeklinks', inplace = False, save = False):
+    def tomek_links(self, dataOut = 'Tomeklinks', dataIn = 'train_test_split'):
         """Undersample data according to Tomek Links algorithm
         Plots first two principle components of sampled data
         Returns resampled feature vector and training data
@@ -254,32 +297,15 @@ class Sampling():
                 X_resample(dataframe): resampled feature data
                 y_resample(dataframe): resampled target data
         """
-
-        mask = self.list_cat_features()
-        if self.X_mean == None:
-            self.X_mean = self.X_train.mean()
-
-        contfeatures = self.X_train.loc[:,mask==False].fillna(self.X_train.mean())
-
         sampler = TomekLinks() 
 
-        X_resample, y_resample = sampler.fit_resample(contfeatures, self.y_train)
+        self.features[dataOut],  self.target[dataOut] = sampler.fit_resample(self.features[dataIn], self.target[dataIn])
 
-        print('TomekLinks undersampling {}'.format(Counter(y_resample)))
-        self.PCA_plot(X_resample, y_resample,figname, figname)  
-        
-        X_resample = X_resample.merge(self.X_train.fillna(self.X_train.mean()), how = "inner", on = list(X_resample.columns))
+        self.quantityChange[dataOut] = Counter(self.target[dataIn]) - Counter(self.target[dataOut])
+    
+        return 
 
-        if save == True:
-            X_resample.to_csv(os.path.join(_preprocesseddir,"%s-features.csv"%figname))
-            y_resample.to_csv(os.path.join(_preprocesseddir,"%s-target.csv"%figname))
-        if inplace == True:
-            self.X_train = X_resample
-            self.y_train = y_resample
-
-        return X_resample, y_resample
-
-    def near_miss(self, figname = 'NearMiss', inplace = False, save = False):
+    def near_miss(self, dataOut = 'NearMiss', dataIn = 'train_test_split'):
         """Undersample data according to Near Miss algorithm
         Plots first two principle components of sampled data
         Returns resampled feature vector and training data
@@ -295,31 +321,16 @@ class Sampling():
                 X_resample(dataframe): resampled feature data
                 y_resample(dataframe): resampled target data
         """
-        mask = self.list_cat_features()
-        if self.X_mean == None:
-            self.X_mean = self.X_train.mean()
-
-        contfeatures = self.X_train.loc[:,mask==False].fillna(self.X_train.mean())
 
         sampler = NearMiss() 
 
-        X_resample, y_resample = sampler.fit_resample(contfeatures, self.y_train)
-        print('NearMiss undersampling {}'.format(Counter(y_resample)))
-        self.PCA_plot(X_resample, y_resample,figname, figname)  
-        
-        X_resample = X_resample.merge(self.X_train.fillna(self.X_train.mean()), how = "inner", on = list(X_resample.columns))
+        self.features[dataOut],  self.target[dataOut] = sampler.fit_resample(self.features[dataIn], self.target[dataIn])
 
-        if save == True:
-            X_resample.to_csv(os.path.join(_preprocesseddir,"%s-features.csv"%figname))
-            y_resample.to_csv(os.path.join(_preprocesseddir,"%s-target.csv"%figname))
+        self.quantityChange[dataOut] = Counter(self.target[dataIn]) - Counter(self.target[dataOut])
         
-        if inplace == True:
-            self.X_train = X_resample
-            self.y_train = y_resample
-        
-        return X_resample, y_resample
+        return 
 
-    def cluster_centroids(self, ratio = 0.125, figname = 'ClusterCentroid', save = False, inplace = False):
+    def cluster_centroids(self, ratio = 0.125, dataOut = 'ClusterCentroid', dataIn = 'train_test_split'):
         """Undersample data according to Cluster centroid algorithm
         Plots first two principle components of sampled data
         Returns resampled feature vector and training data
@@ -337,31 +348,15 @@ class Sampling():
                 y_resample(dataframe): resampled target data
         """
 
-        mask = self.list_cat_features()
-        if self.X_mean == None:
-            self.X_mean = self.X_train.mean()
-        self.X_train.fillna(self.X_mean, inplace = True)
-        self.X_train.to_csv('Test.csv')
         sampler = ClusterCentroids(sampling_strategy = ratio, voting = "hard") 
-        print(self.X_train.isnull().values.any())
-        X_resample, y_resample = sampler.fit_resample(self.X_train, self.y_train)
-        print('Cluster Centroid undersampling {}'.format(Counter(y_resample)))
-        print(X_resample.shape,y_resample.shape)
-        #self.PCA_plot(X_resample, y_resample,figname, figname)  
-        
-        X_resample = X_resample.merge(self.X_train, how = "inner", on = list(X_resample.columns))
-        print(X_resample.shape,y_resample.shape)
-        if save == True:
-            X_resample.to_csv(os.path.join(_preprocesseddir,"%s-features.csv"%figname))
-            y_resample.to_csv(os.path.join(_preprocesseddir,"%s-target.csv"%figname))
-        
-        if inplace == True:
-            self.X_train = X_resample
-            self.y_train = y_resample
 
-        return X_resample, y_resample
+        self.features[dataOut],  self.target[dataOut] = sampler.fit_resample(self.features[dataIn], self.target[dataIn])
+        self.quantityChange[dataOut] = Counter(self.target[dataIn]) - Counter(self.target[dataOut])
+        
 
-    def neigbourhood_cleaning(self, figname = 'Neighbourhood Cleaning', save = False, inplace = False):
+        return
+
+    def neigbourhood_cleaning(self, dataOut = 'Neighbourhood Cleaning', dataIn = 'train_test_split'):
         """Undersample data according to Near Miss algorithm
         Plots first two principle components of sampled data
         Returns resampled feature vector and training data
@@ -377,31 +372,15 @@ class Sampling():
                 X_resample(dataframe): resampled feature data
                 y_resample(dataframe): resampled target data
         """
-        mask = self.list_cat_features()
-        if self.X_mean == None:
-            self.X_mean = self.X_train.mean()
+        sampler = NeighbourhoodCleaningRule()
 
-        contfeatures = self.X_train.loc[:,mask==False].fillna(self.X_train.mean())
-
-        sampler = ClusterCentroids() 
-
-        X_resample, y_resample = sampler.fit_resample(contfeatures, self.y_train)
-        print('Neighbourhood Cleaning undersampling {}'.format(Counter(y_resample)))
-        self.PCA_plot(X_resample, y_resample,figname, figname)  
+        self.features[dataOut],  self.target[dataOut] = sampler.fit_resample(self.features[dataIn], self.target[dataIn])
+        self.quantityChange[dataOut] = Counter(self.target[dataIn]) - Counter(self.target[dataOut])
         
-        X_resample = X_resample.merge(self.X_train.fillna(self.X_train.mean()), how = "inner", on = list(X_resample.columns))
 
-        if save == True:
-            X_resample.to_csv(os.path.join(_preprocesseddir,"%s-features.csv"%figname))
-            y_resample.to_csv(os.path.join(_preprocesseddir,"%s-target.csv"%figname))
-        
-        if inplace == True:
-            self.X_train = X_resample
-            self.y_train = y_resample
-
-        return X_resample, y_resample
+        return
     
-    def SMOTE(self, ratio = 0.25, k = 5, figname = "SMOTE", inplace = False, save = False):
+    def SMOTE(self, ratio = 0.25, k = 5, dataOut = "SMOTE", dataIn = 'train_test_split'):
         """Oversample minority data according to SMOTE algorithm
         Plots first two principle components of sampled data
         Returns resampled feature vector and training data
@@ -418,26 +397,13 @@ class Sampling():
                 X_resample(dataframe): resampled feature data
                 y_resample(dataframe): resampled target data
         """
-        
-        mask = self.list_cat_features()
-        #if not self.X_mean:
-        #    self.X_mean = self.X_train.mean()
-        self.X_train.loc[:,mask==True] = self.X_train.loc[:,mask==True].astype(str)
-        print(self.X_train.dtypes)
-        mask = list(self.list_cat_features())
+
         sampler = SMOTE( sampling_strategy = ratio, k_neighbors = k) 
-        self.X_train = self.X_train.fillna(self.X_train.mean())
-        X_resample, y_resample = sampler.fit_resample(self.X_train, self.y_train)
 
-        if save == True:
-            X_resample.to_csv(os.path.join(_preprocesseddir,"%s-features.csv"%figname))
-            y_resample.to_csv(os.path.join(_preprocesseddir,"%s-target.csv"%figname))
+        self.features[dataOut],  self.target[dataOut] = sampler.fit_resample(self.features[dataIn], self.target[dataIn])
+        self.quantityChange[dataOut] = Counter(self.target[dataIn]) - Counter(self.target[dataOut])
 
-        if inplace == True:
-            self.X_train = X_resample
-            self.y_train = y_resample
-
-        return X_resample, y_resample
+        return 
 
     def SMOTE_cat(self, ratio = 0.25, k = 5, figname = "SMOTE", inplace = False, save = False):
         """Oversample minority data according to SMOTE algorithm
@@ -477,7 +443,79 @@ class Sampling():
 
         return X_resample, y_resample
 
-    def save_dataset(self,foldername, filename):
+    def logistic_regression(self, C = [0.001,0.01,0.1,1,10,1000], dataIn = 'all'): 
+        lr = LogisticRegression(max_iter=1000)
+        params = {
+            'C' : C
+        }
+        lr_CV = GridSearchCV(lr, params, cv=5)
+        if dataIn == 'all':
+            for key in self.features:
+                try:
+                    lr_CV.fit(self.features[key], self.target[key])
+        
+                    self.results[key] = lr_CV.cv_results_
+                    self.models[key] = lr_CV.best_estimator_
+                    print('yes', self.models[key])
+                except ValueError:
+                    pass
+        
+        else:
+            lr_CV.fit(self.features[dataIn], self.target[dataIn])
+        
+            self.results[dataIn] = lr_CV.cv_results_
+            self.models[dataIn] = lr_CV.best_estimator_
+
+        return
+    
+    def test_model(self):
+
+        for key in self.models:
+            lr = self.models[key].fit(self.features[key], self.target[key])
+            y_pred_test = lr.predict(self.features['test_data'])
+            y_test = self.target['test_data']
+            y_pred_train = lr.predict(self.features['train_test_split'])
+            y_train = self.target['train_test_split']
+
+            metrics = {}
+            metrics['roc_auc_test'] = roc_auc_score(y_test, y_pred_test)
+            metrics['roc_auc_train'] = roc_auc_score(y_train, y_pred_train)
+            metrics['f1_test'] = f1_score(y_test, y_pred_test)
+            metrics['f1_train'] = f1_score(y_train, y_pred_train)
+            metrics['recall_test'] = recall_score(y_test, y_pred_test)
+            metrics['recall_train'] = recall_score(y_train, y_pred_train)
+            try:
+                metrics['quantity_change'] = self.quantityChange[key]
+            except KeyError:
+                pass
+
+            self.metrics[key] = metrics
+            print(self.metrics)
+        
+        return
+    
+    def save_results(self, prefix, data = 'all'):
+
+        wb = Workbook()
+        wb.save(filename = os.path.join(self.dir, '%s_creation_metrics.xlsx'%prefix))
+
+        if data == 'all':
+            for key in self.results:
+                df = pd.DataFrame.from_dict(self.results[key])
+                with pd.ExcelWriter(os.path.join(self.dir, '%s_creation_metrics.xlsx'%prefix), engine="openpyxl", mode = 'a') as writer:
+                    df.to_excel(writer, sheet_name = key)
+        else:
+            df = pd.DataFrame.from_dict(self.results[data])
+            with pd.ExcelWriter(os.path.join(self.dir, '%s_creation_metrics.xlsx'%prefix), engine="openpyxl", mode = 'a') as writer:
+                df.to_excel(writer, sheet_name = data)
+        
+        
+        dataframe = pd.DataFrame.from_dict(self.metrics)    
+        dataframe.to_excel(os.path.join(self.dir, '%s_model_metrics.xlsx'%prefix))
+        return
+
+    def save_dataset(self, prefix, data = 'all'):
+
         """Saves all training, test and original data to csv files in specified folder
         
             Params:
@@ -486,16 +524,39 @@ class Sampling():
                 
             Return:
         """
-        if not os.path.exists(os.path.join(_preprocesseddir,foldername)):
-            os.mkdir(os.path.join(_preprocesseddir,foldername))
-        path = os.path.join(_preprocesseddir,foldername)
 
-        self.dataframe.to_csv(os.path.join(path, "%s-original.csv"%filename))
-        self.normalised.to_csv(os.path.join(path, "%s-X_train-normalised.csv"%filename))
-        self.X_train.to_csv(os.path.join(path, "%s-X_train-tot.csv"%filename))
-        self.y_train.to_csv(os.path.join(path, "%s-y_train-tot.csv"%filename))
-        self.X_test.to_csv(os.path.join(path, "%s-X_test.csv"%filename))
-        self.y_test.to_csv(os.path.join(path, "%s-y_test.csv"%filename))
-        
+        wb = Workbook()
+        wb.save(filename = os.path.join(self.dir,'%s_features.xlsx'%prefix))
+        wb.save(filename = os.path.join(self.dir,'%s_target.xlsx'%prefix))
+
+        if data == 'all':
+            for key in self.features:
+                df_features = self.features[key]
+                df_target = self.target[key]
+                with pd.ExcelWriter(os.path.join(self.dir,'%s_features.xlsx'%prefix), engine="openpyxl", mode = 'a') as writer:
+                    df_features.to_excel(writer, sheet_name = key)
+                with pd.ExcelWriter(os.path.join(self.dir,'%s_target.xlsx'%prefix), engine="openpyxl", mode = 'a') as writer:
+                    df_target.to_excel(writer, sheet_name = key)
+        else:
+            df_features = self.features[data]
+            df_target = self.target[data]
+            with pd.ExcelWriter(os.path.join(self.dir,'%s_features.xlsx'%prefix), engine="openpyxl", mode = 'a') as writer:
+                df_features.to_excel(writer, sheet_name = data)
+            with pd.ExcelWriter(os.path.join(self.dir,'%s_target.xlsx'%prefix), engine="openpyxl", mode = 'a') as writer:
+                df_target.to_excel(writer, sheet_name = data)
+
         return
 
+    def save_models(self, folder = 'models', model = 'all'):
+        path = os.path.join(self.dir, folder)
+
+        if not os.path.exists(path):
+            os.makedirs(path)
+        
+        if model == 'all':
+            for key in self.models:
+                joblib.dump(self.models[key], os.path.join(path, "%s_model.pkl"%key ))
+        return
+    
+    def ada_boost(self):
+        pass

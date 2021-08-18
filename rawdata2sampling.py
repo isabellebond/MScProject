@@ -121,7 +121,10 @@ data.convert_to_int(['Ward'], 'Ward')
 data.dataframe.drop(['Q27a','Q28a','Q5f','Q5k','Usefulness of online publication'], axis = 1, inplace = True)
 
 #Drop columns for location
-data.dataframe.drop(['Postcode_clean','CategoryType','WellbeingType','OutputArea','LowerSuperOutput','weight'], axis = 1, inplace = True)
+data.convert_to_latlong('Postcode_clean')
 
-data.binarize_target_WCC_total('WCC_total_final_no_loc')
-#data.binarize_target_WCC_total('WCC_mob_final_no_loc')
+print(data.dataframe['latitude'])
+data.dataframe.drop(['CategoryType','WellbeingType','OutputArea','LowerSuperOutput','weight'], axis = 1, inplace = True)
+
+data.binarize_target_WCC_total('WCC_total_final')
+#data.binarize_target_WCC_total('WCC_mob_final')

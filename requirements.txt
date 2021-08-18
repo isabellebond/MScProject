@@ -7,3 +7,4 @@ scikit-learn==0.24.2
 dvc[gdrive]==2.4.3
 openpyxl==3.0.7
 imblearn==0.0
+pgeocode == 0.3.0
