@@ -115,7 +115,7 @@ data.dataframe.drop(['Q37b', 'Q37c','Q37d','Q37e'], axis = 1, inplace = True)
 data.set_nan(['Q38'], [10])
 
 #Ward
-data.convert_to_int(['Ward'], 'Ward')
+#data.convert_to_int(['Ward'], 'Ward')
 
 #Drop near empty columns (analysis from jupyter notebook)
 data.dataframe.drop(['Q27a','Q28a','Q5f','Q5k','Usefulness of online publication'], axis = 1, inplace = True)
@@ -124,7 +124,7 @@ data.dataframe.drop(['Q27a','Q28a','Q5f','Q5k','Usefulness of online publication
 data.convert_to_latlong('Postcode_clean')
 
 print(data.dataframe['latitude'])
-data.dataframe.drop(['CategoryType','WellbeingType','OutputArea','LowerSuperOutput','weight'], axis = 1, inplace = True)
+data.dataframe.drop(['Ward','CategoryType','WellbeingType','OutputArea','LowerSuperOutput','weight'], axis = 1, inplace = True)
 
 data.binarize_target_WCC_total('WCC_total_final')
 #data.binarize_target_WCC_total('WCC_mob_final')

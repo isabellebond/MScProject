@@ -1,28 +1,7 @@
 {
   "Gender,S1": {
     "Female": 0,
-    "Male": 1,
-    "Warwick": 0,
-    "Hyde Park": 1,
-    "Bryanston and Dorset Square": 2,
-    "Knightsbridge and Belgravia": 3,
-    "Abbey Road": 4,
-    "Church Street": 5,
-    "Bayswater": 6,
-    "Queen's Park": 7,
-    "Little Venice": 8,
-    "St. James's": 9,
-    "Churchill": 10,
-    "Harrow Road": 11,
-    "Maida Vale": 12,
-    "Marylebone High Street": 13,
-    "Regent's Park": 14,
-    "Tachbrook": 15,
-    "Westbourne": 16,
-    "Lancaster Gate": 17,
-    "Vincent Square": 18,
-    "West End": 19,
-    "NaN": 20
+    "Male": 1
   },
   "Q8 services": "bool",
   "Q12 Online": "bool",
@@ -36,30 +15,5 @@
     "(Don't know)": NaN,
     "None of these": 0
   },
-  "Q37, UK national": "bool",
-  "Ward": {
-    "Female": 0,
-    "Male": 1,
-    "Warwick": 0,
-    "Hyde Park": 1,
-    "Bryanston and Dorset Square": 2,
-    "Knightsbridge and Belgravia": 3,
-    "Abbey Road": 4,
-    "Church Street": 5,
-    "Bayswater": 6,
-    "Queen's Park": 7,
-    "Little Venice": 8,
-    "St. James's": 9,
-    "Churchill": 10,
-    "Harrow Road": 11,
-    "Maida Vale": 12,
-    "Marylebone High Street": 13,
-    "Regent's Park": 14,
-    "Tachbrook": 15,
-    "Westbourne": 16,
-    "Lancaster Gate": 17,
-    "Vincent Square": 18,
-    "West End": 19,
-    "NaN": 20
-  }
+  "Q37, UK national": "bool"
 }

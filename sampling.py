@@ -15,16 +15,21 @@ _sampling = os.path.join(_experimentdir,'sampling')
 undersampling = os.path.join(_sampling,'undersampling')
 oversampling = os.path.join(_sampling,'oversampling')
 combsampling = os.path.join(_sampling,'combsampling')
+splitsampling = os.path.join(_sampling,'splitsampling')
+
 if not os.path.exists(undersampling):
     os.makedirs(undersampling)
 if not os.path.exists(oversampling):
     os.makedirs(oversampling)
 if not os.path.exists(combsampling):
     os.makedirs(combsampling)
+if not os.path.exists(splitsampling):
+    os.makedirs(splitsampling)
 
 #Create dataframe of WCC Survey data
 WCC_Survey = sm.csv_to_pd("WCC_total_final", _preprocesseddir)
 print(WCC_Survey)
+"""
 #UnderSampling
 USamp = sm.Sampling(WCC_Survey, undersampling)
 USamp.normalise()
@@ -105,15 +110,50 @@ CSamp.SMOTE(ratio = 0.25, dataOut='Smote_CC_4_8', dataIn = 'ClusterCentroid_8')
 CSamp.SMOTE(ratio = 0.5, dataOut='Smote_CC_2_8', dataIn = 'ClusterCentroid_4')
 
 
-CSamp.save_dataset('combsampling')
-CSamp.save_results('combsampling')
-
 CSamp.logistic_regression()
 CSamp.test_model()
 
+CSamp.save_dataset('combsampling')
+CSamp.save_results('combsampling')
 CSamp.save_models()
 
+"""
 #Splitting Dataset
+SSamp = sm.Sampling(WCC_Survey, splitsampling)
+SSamp.normalise()
+SSamp.impute()
+SSamp.train_test_split(0.3)
+
+SSamp.data_split(ratio = 0.125, dataOut = 'split_data_8')
+SSamp.data_split(ratio = 0.25, dataOut = 'split_data_4')
+SSamp.data_split(ratio = 0.5, dataOut = 'split_data_2')
+
+SSamp.neigbourhood_cleaning()
+SSamp.SMOTE(ratio = 0.25, dataOut='Smote_NC_4', dataIn = 'Neighbourhood Cleaning')
+SSamp.data_split(ratio = 0.25, dataIn = 'Smote_NC_4', dataOut='Smote_NC_4')
+SSamp.SMOTE(ratio = 0.125, dataOut='Smote_NC_8', dataIn = 'Neighbourhood Cleaning')
+SSamp.data_split(ratio = 0.125, dataIn = 'Smote_NC_8', dataOut='Smote_NC_8')
+SSamp.SMOTE(ratio = 0.5, dataOut='Smote_NC_2', dataIn = 'Neighbourhood Cleaning')
+SSamp.data_split(ratio = 0.5, dataIn = 'Smote_NC_2', dataOut='Smote_NC_2')
+
+SSamp.tomek_links()
+SSamp.SMOTE(ratio = 0.25, dataOut='Smote_Tomek_4', dataIn = 'Tomeklinks')
+SSamp.data_split(ratio = 0.25, dataIn = 'Smote_Tomek_4', dataOut='Smote_Tomek_4')
+SSamp.SMOTE(ratio = 0.125, dataOut='Smote_Tomek_8', dataIn = 'Tomeklinks')
+SSamp.data_split(ratio = 0.125, dataIn = 'Smote_Tomek_8', dataOut='Smote_Tomek_4')
+SSamp.SMOTE(ratio = 0.5, dataOut='Smote_Tomek_2', dataIn = 'Tomeklinks')
+SSamp.data_split(ratio = 0.5, dataIn = 'Smote_Tomek_2', dataOut='Smote_Tomek_4')
+
+SSamp.logistic_regression()
+SSamp.test_model()
+
+SSamp.save_dataset('splitsampling')
+SSamp.save_results('splitsampling')
+
+SSamp.save_models()
+
+
+
 
 
 

@@ -148,7 +148,7 @@ class Sampling():
         class1 = []
         class2 = []
         for i in range(0,len(self.target[dataIn])):
-            if self.target[dataIn][i] == 0:
+            if self.target[dataIn].iloc[i] == 0:
                 class1.append(i)
             else:
                 class2.append(i)
