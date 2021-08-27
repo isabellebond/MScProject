@@ -6,6 +6,7 @@ from collections import Counter
 import pylab as pl
 import joblib
 import warnings
+from scipy.sparse import data
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 from sklearn.svm import SVC
 from sklearn.model_selection import GridSearchCV
@@ -25,11 +26,13 @@ class machine_learning():
         self.results = {}
         self.models = {}
         self.metrics = {}
+        self.ada_boost_models = {}
+        self.ada_boost_alphas = {}
         
         self.features = X_train
-        self.target= y_train
+        self.target= y_train['Target'].to_numpy().ravel()
         self.X_test = X_test
-        self.y_test = y_test
+        self.y_test = y_test['Target'].to_numpy().ravel()
 
         self.dir = directory
 
@@ -141,27 +144,78 @@ class machine_learning():
         self.models['logistic_regression'] = lr_CV.best_estimator_
 
         return
+    
+    def elastic_regression(self, C = [0.001,0.01,0.1,1,10,1000], l1_ratio = [0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1],max_iters = 1000): 
+        lr = LogisticRegression(penalty = 'elasticnet', solver = 'saga')
+        params = {
+            'C' : C,
+            'l1_ratio' : l1_ratio
+        }
+        lr_CV = GridSearchCV(lr, params, cv=5)
+        lr_CV.fit(self.features, self.target)
+        
+        self.results['elastic_regression'] = lr_CV.cv_results_
+        self.models['elastic_regression'] = lr_CV.best_estimator_
 
-    def test_model(self):
+        return
+    
 
-        for key in self.models:
-            lr = self.models[key].fit(self.features, self.target)
-            y_pred_test = lr.predict(self.X_test)
-            y_test = self.y_test
-            y_pred_train = lr.predict(self.features)
-            y_train = self.target
 
-            metrics = {}
-            metrics['roc_auc_test'] = roc_auc_score(y_test, y_pred_test)
-            metrics['roc_auc_train'] = roc_auc_score(y_train, y_pred_train)
-            metrics['f1_test'] = f1_score(y_test, y_pred_test)
-            metrics['f1_train'] = f1_score(y_train, y_pred_train)
-            metrics['recall_test'] = recall_score(y_test, y_pred_test)
-            metrics['recall_train'] = recall_score(y_train, y_pred_train)
-            metrics['brier_score'] = brier_score_loss(y_train, y_pred_train)
-            metrics['brier_score'] = brier_score_loss(y_train, y_pred_train)
 
-            self.metrics[key] = metrics
+    def test_model(self, ada_boost = True):
+        if ada_boost == True:
+            for key in self.ada_boost_models:
+                y_pred_test = {}
+                y_pred_train = {}
+                for model in self.ada_boost_models[key]:
+                    y_pred_test[model] = self.ada_boost_models[key][model].predict(self.X_test)
+                    y_pred_test[model] = np.where(y_pred_test == 0, -1, y_pred_test)
+                    print(y_pred_test[model], self.ada_boost_alphas[key])
+                    y_pred_test[model] = y_pred_test * self.ada_boost_alphas[key][model]
+
+                    y_pred_train[model] = self.ada_boost_models[key][model].predict(self.X_train)
+                    y_pred_train[model] = np.where(y_pred_train == 0, -1, y_pred_train)
+                    y_pred_train[model] = y_pred_train * self.ada_boost_alphas[key][model]
+                
+                y_pred_test_tot = sum(y_pred_test.values())
+                y_pred_test_tot = np.where(y_pred_test == -1, 0, y_pred_test)
+                y_pred_train_tot = sum(y_pred_train.values())
+                y_pred_train_tot = np.where(y_pred_train == -1, 0, y_pred_train)
+
+                y_test = self.y_test
+                y_train = self.target
+
+                metrics = {}
+                metrics['roc_auc_test'] = roc_auc_score(y_test, y_pred_test_tot)
+                metrics['roc_auc_train'] = roc_auc_score(y_train, y_pred_train_tot)
+                metrics['f1_test'] = f1_score(y_test, y_pred_test_tot)
+                metrics['f1_train'] = f1_score(y_train, y_pred_train_tot)
+                metrics['recall_test'] = recall_score(y_test, y_pred_test_tot)
+                metrics['recall_train'] = recall_score(y_train, y_pred_train_tot)
+                metrics['brier_score'] = brier_score_loss(y_train, y_pred_train_tot)
+                metrics['brier_score'] = brier_score_loss(y_train, y_pred_train_tot)
+
+                self.metrics["%s-adaboost"%key] = metrics
+
+        else:
+            for key in self.models:
+                lr = self.models[key].fit(self.features, self.target)
+                y_pred_test = lr.predict(self.X_test)
+                y_test = self.y_test
+                y_pred_train = lr.predict(self.features)
+                y_train = self.target
+
+                metrics = {}
+                metrics['roc_auc_test'] = roc_auc_score(y_test, y_pred_test)
+                metrics['roc_auc_train'] = roc_auc_score(y_train, y_pred_train)
+                metrics['f1_test'] = f1_score(y_test, y_pred_test)
+                metrics['f1_train'] = f1_score(y_train, y_pred_train)
+                metrics['recall_test'] = recall_score(y_test, y_pred_test)
+                metrics['recall_train'] = recall_score(y_train, y_pred_train)
+                metrics['brier_score'] = brier_score_loss(y_train, y_pred_train)
+                metrics['brier_score'] = brier_score_loss(y_train, y_pred_train)
+
+                self.metrics[key] = metrics
             print(self.metrics)
         
         return

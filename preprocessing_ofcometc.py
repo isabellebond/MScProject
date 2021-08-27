@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import numpy as np
-import dataFuncs
+import src.rawdataFuncs as df
 
 #Initialise repositories
 _projroot = os.path.abspath('.')
@@ -13,9 +13,9 @@ _rawdir = os.path.join(_datadir, 'rawdata')
 #---------------Ofcom Data------------------------------
 #-------------------------------------------------------
 
-Ofcom = dataFuncs.excel_to_pd("Ofcom", _preprocesseddir)
+Ofcom = df.excel_to_pd("Ofcom", _preprocesseddir)
 #create Target dataset
-ofcom_data = dataFuncs.RawData(Ofcom)
+ofcom_data = df.RawData(Ofcom)
 
 
 
@@ -23,8 +23,8 @@ ofcom_data = dataFuncs.RawData(Ofcom)
 #-------Population by Age and Gender Data---------------
 #-------------------------------------------------------
 
-AgeGender = dataFuncs.excel_to_pd("AgeGender", _preprocesseddir, Skiprows = 7)
-age_data = dataFuncs.RawData(AgeGender)
+AgeGender = df.excel_to_pd("AgeGender", _preprocesseddir, Skiprows = 7)
+age_data = df.RawData(AgeGender)
 #Remove large building data
 age_data.delete_flag_removal()
 #Bin age data
@@ -34,14 +34,14 @@ age_data.column_combine(["Females aged 45-49","Females aged 50-54","Females aged
 age_data.column_combine(["Males aged 0-4", "Males aged 10-14", "Males aged 15","Males aged 16-17","Males aged 18-19","Males aged 20-24"],"Males aged under 25")
 age_data.column_combine(["Males aged 25-29","Males aged 30-34","Males aged 35-39","Males aged 40-44"],"Males aged 25-44")
 age_data.column_combine(["Males aged 45-49","Males aged 50-54","Males aged 55-59","Males aged 60-64"], "Males aged 45-65")
-
+print(age_data.dataframe.head())
 #-------------------------------------------------------
 #-------------------Paycheck data-----------------------
 #-------------------------------------------------------
 
-Paycheck = dataFuncs.excel_to_pd("Paycheck", _preprocesseddir, Skiprows = 10)
+Paycheck = df.excel_to_pd("Paycheck", _preprocesseddir, Skiprows = 10)
 #Remove large building data
-paycheck_data = dataFuncs.RawData(Paycheck)
+paycheck_data = df.RawData(Paycheck)
 paycheck_data.delete_flag_removal()
 #Keep only overall markers of income
 paycheck_data.dataframe = paycheck_data.dataframe[["Postcode","Mean Income","Median Income","Mode Income","Lower Quartile"]]
@@ -56,7 +56,7 @@ ofcom_data.dataset_combine(age_data,"Postcode")
 ofcom_data.dataset_combine(paycheck_data,"Postcode")
 
 #Postcode and postcode area to int
-ofcom_data.convert_to_int(["Postcode", "PC_Area"])
+#ofcom_data.convert_to_int(["Postcode", "PC_Area"])
 
 #Output to csv
 ofcom_data.binarize_target_Ofcom("Ofcom_Combine")

@@ -121,10 +121,12 @@ data.set_nan(['Q38'], [10])
 data.dataframe.drop(['Q27a','Q28a','Q5f','Q5k','Usefulness of online publication'], axis = 1, inplace = True)
 
 #Drop columns for location
-data.convert_to_latlong('Postcode_clean')
+#data.convert_to_latlong('Postcode_clean')
 
-print(data.dataframe['latitude'])
-data.dataframe.drop(['Ward','CategoryType','WellbeingType','OutputArea','LowerSuperOutput','weight'], axis = 1, inplace = True)
+#print(data.dataframe['latitude'])
+data.dataframe.drop(['Postcode_clean','Ward','CategoryType','WellbeingType','LowerSuperOutput','weight'], axis = 1, inplace = True)
 
-data.binarize_target_WCC_total('WCC_total_final')
-#data.binarize_target_WCC_total('WCC_mob_final')
+data.binarize_target_WCC_total('WCC_total_final_no_loc')
+#data.binarize_target_WCC_mobile('WCC_mob_final_no_loc')
+
+

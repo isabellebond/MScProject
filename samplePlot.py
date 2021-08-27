@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import numpy as np
-import src.plotFuncs as pf
+
 import matplotlib.pyplot as plt
 
 _projroot = os.path.abspath('.')
@@ -16,7 +16,7 @@ undersampling = os.path.join(_sampling,'undersampling')
 oversampling = os.path.join(_sampling,'oversampling')
 combsampling = os.path.join(_sampling,'combsampling')
   
-under = pd.read_excel(os.path.join(undersampling, 'undersampling_model_metrics.xlsx'), sheet_name = 'Transpose', index_col =  'Unnamed: 0')
+under = pd.read_excel(os.path.join(undersampling, 'undersampling_model_metrics.xlsx'), index_col =  'Unnamed: 0')
 under_test = under.loc[:, under.columns.str.contains('test')]
 plt.figure()
 under_test.plot(kind = 'bar',rot = 90)

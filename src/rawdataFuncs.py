@@ -3,6 +3,8 @@ import os
 import numpy as np
 import json
 import pgeocode
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
 
 from pandas._libs.tslibs.timedeltas import ints_to_pytimedelta
 
@@ -49,6 +51,8 @@ class RawData:
     def __init__(self, dataframe):
         self.dataframe = dataframe
         self.reference = {}
+        self.imputed = {}
+        self.params = {}
 
     def convert_to_bool(self, columnname, title, YesNo = False):
 
@@ -236,6 +240,8 @@ class RawData:
                 QTenJ = np.append(QTenJ, 0)
             else:
                 QTenJ = np.append(QTenJ, 1)
+        
+
     
         QFourteenK = np.array([])
         for j in dataframe.loc[:,"Q10j"]:
@@ -280,10 +286,15 @@ class RawData:
             Return:
                 dataframe: dataframe with updated column values
         """
-        dataframe = self.convert_to_bool(["Q10a","Q10c","Q10d","Q10f","Q10g"],"Q10, Target")
+        dataframe = self.convert_to_bool(["Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j"],"Q10, Target")
+        dataframe = dataframe[dataframe['Q10h'] == 0]
+        dataframe = dataframe[dataframe['Q10i'] == 0]
+        dataframe = dataframe[dataframe['Q10j'] == 0]
+        print(dataframe)
         dataframe_target = dataframe[["Q10a","Q10c","Q10d","Q10f","Q10g"]]
+        
         digitallyExcluded = (np.sign(dataframe_target.sum(axis = 1)) +1 ) % 2 
-        self.dataframe = self.dataframe.drop(["Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j"], axis = 1)
+        self.dataframe = dataframe.drop(["Q10a","Q10b", "Q10c","Q10d","Q10e","Q10f","Q10g","Q10h","Q10i","Q10j"], axis = 1)
         self.dataframe.insert(0,"Target",digitallyExcluded)
 
         self.dataframe.to_csv(os.path.join(_preprocesseddir,"%s.csv"%csv_name))
@@ -382,9 +393,10 @@ class RawData:
 
         for i in range(1,len(columnname)):
             sum_column = sum_column + dataframe[columnname[i]]
-            dataframe = self.dataframe.drop(columnname[i], axis = 1)
+            dataframe = dataframe.drop(columnname[i], axis = 1)
         
-        self.dataframe[newcolumnname] = sum_column
+        dataframe[newcolumnname] = sum_column
+        self.dataframe = dataframe
         return self.dataframe
 
     def dataset_combine(self, other, combinecolumn):
@@ -408,3 +420,9 @@ class RawData:
         #Combine dataframes
         self.dataframe = self.dataframe.merge(other.dataframe, how = "inner", on = combinecolumn)
         return self.dataframe
+
+    def save_results(self, path):
+        dataframe = pd.DataFrame.from_dict(self.params)    
+        dataframe.to_excel(path)
+        return
+

@@ -2,6 +2,10 @@ import pandas as pd
 import os
 import numpy as np
 import src.samplingFuncs as sm
+from sklearn.linear_model import BayesianRidge
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import ExtraTreesRegressor
+from sklearn.neighbors import KNeighborsRegressor
 
 #Initialise repositories
 _projroot = os.path.abspath('.')
@@ -17,6 +21,7 @@ oversampling = os.path.join(_sampling,'oversampling')
 combsampling = os.path.join(_sampling,'combsampling')
 splitsampling = os.path.join(_sampling,'splitsampling')
 
+
 if not os.path.exists(undersampling):
     os.makedirs(undersampling)
 if not os.path.exists(oversampling):
@@ -27,136 +32,115 @@ if not os.path.exists(splitsampling):
     os.makedirs(splitsampling)
 
 #Create dataframe of WCC Survey data
-WCC_Survey = sm.csv_to_pd("WCC_total_final", _preprocesseddir)
+WCC_Survey = sm.csv_to_pd("WCC_mob_final_no_loc", _preprocesseddir)
 print(WCC_Survey)
-"""
+
+
 #UnderSampling
-USamp = sm.Sampling(WCC_Survey, undersampling)
+USamp = sm.Sampling(WCC_Survey, _sampling)
 USamp.normalise()
+
+#USamp.impute(name = 'Bayseian Ridge', estimators = BayesianRidge())
+#USamp.impute(name = 'Decision-Tree Regressor', estimators = DecisionTreeRegressor())
+#USamp.impute(name = 'Extra-Trees Regressor', estimators = ExtraTreesRegressor())
+#USamp.impute(name = 'K-Neighbours Regressor', estimators
+#= KNeighborsRegressor())
+
+
 USamp.impute()
 USamp.train_test_split(0.3)
 
 
-USamp.tomek_links()
-USamp.near_miss()
-USamp.neigbourhood_cleaning()
-USamp.cluster_centroids(ratio = 0.125, dataOut = 'ClusterCentroid_8')
-USamp.cluster_centroids(ratio = 0.25, dataOut = 'ClusterCentroid_4')
-USamp.cluster_centroids(ratio = 0.5, dataOut = 'ClusterCentroid_2')
+USamp.near_miss(ratio = 0.7, dataOut = 'Near Miss - Ratio 0.7')
+
+
+
+
+
 
 USamp.logistic_regression()
 USamp.test_model()
 
 USamp.save_dataset('undersampling')
 USamp.save_results('undersampling')
-USamp.save_models()
+"""
+#USamp.save_models()
+USamp.PCA_plot()
 
+USamp.Scatter_Plot(external_data = os.path.join(undersampling, "NM_CC.xlsx"))
 #OverSampling
+
 OSamp = sm.Sampling(WCC_Survey, oversampling)
 OSamp.normalise()
 OSamp.impute()
 OSamp.train_test_split(0.3)
 
-OSamp.SMOTE(ratio = 0.1, dataOut='SMOTE_0.1')
-OSamp.SMOTE(ratio = 0.1, dataOut='SMOTE_0.2')
-OSamp.SMOTE(ratio = 0.1, dataOut='SMOTE_0.3')
-OSamp.SMOTE(ratio = 0.1, dataOut='SMOTE_0.4')
-OSamp.SMOTE(ratio = 0.1, dataOut='SMOTE_0.5')
-OSamp.SMOTE(ratio = 0.1, dataOut='SMOTE_0.6')
-OSamp.SMOTE(ratio = 0.1, dataOut='SMOTE_0.7')
-OSamp.SMOTE(ratio = 0.1, dataOut='SMOTE_0.8')
-OSamp.SMOTE(ratio = 0.1, dataOut='SMOTE_0.9')
+OSamp.SMOTE(ratio = 0.1, dataOut='0.1_1')
+OSamp.SMOTE(ratio = 0.1, dataOut='0.1_2')
+OSamp.SMOTE(ratio = 0.1, dataOut='0.1_3')
+OSamp.SMOTE(ratio = 0.2, dataOut='0.2_1')
+OSamp.SMOTE(ratio = 0.2, dataOut='0.2_2')
+OSamp.SMOTE(ratio = 0.2, dataOut='0.2_3')
+OSamp.SMOTE(ratio = 0.3, dataOut='0.3_1')
+OSamp.SMOTE(ratio = 0.3, dataOut='0.3_2')
+OSamp.SMOTE(ratio = 0.3, dataOut='0.3_3')
+OSamp.SMOTE(ratio = 0.4, dataOut='0.4_1')
+OSamp.SMOTE(ratio = 0.4, dataOut='0.4_2')
+OSamp.SMOTE(ratio = 0.4, dataOut='0.4_3')
+OSamp.SMOTE(ratio = 0.5, dataOut='0.5_1')
+OSamp.SMOTE(ratio = 0.5, dataOut='0.5_2')
+OSamp.SMOTE(ratio = 0.5, dataOut='0.5_3')
+OSamp.SMOTE(ratio = 0.6, dataOut='0.6_1')
+OSamp.SMOTE(ratio = 0.6, dataOut='0.6_2')
+OSamp.SMOTE(ratio = 0.6, dataOut='0.6_3')
+OSamp.SMOTE(ratio = 0.7, dataOut='0.7_1')
+OSamp.SMOTE(ratio = 0.7, dataOut='0.7_2')
+OSamp.SMOTE(ratio = 0.7, dataOut='0.7_3')
+OSamp.SMOTE(ratio = 0.8, dataOut='0.8_1')
+OSamp.SMOTE(ratio = 0.8, dataOut='0.8_2')
+OSamp.SMOTE(ratio = 0.8, dataOut='0.8_3')
+OSamp.SMOTE(ratio = 0.9, dataOut='0.9_1')
+OSamp.SMOTE(ratio = 0.9, dataOut='0.9_2')
+OSamp.SMOTE(ratio = 0.9, dataOut='0.9_3')
 
 OSamp.logistic_regression()
 OSamp.test_model()
-
-OSamp.save_dataset('oversampling')
+OSamp.Scatter_Plot(external_data=os.path.join(oversampling,'model_metrics_average.xlsx'))
+#OSamp.save_dataset('oversampling')
 OSamp.save_results('oversampling')
-OSamp.save_models()
+
+#OSamp.save_models()
+
+#OSamp.PCA_plot()
 
 #Over and Under Sampling
 CSamp = sm.Sampling(WCC_Survey, combsampling)
+
 CSamp.normalise()
 CSamp.impute()
 CSamp.train_test_split(0.3)
 
-
-CSamp.tomek_links()
-CSamp.near_miss()
-CSamp.neigbourhood_cleaning()
-CSamp.cluster_centroids(ratio = 0.125, dataOut = 'ClusterCentroid_8')
-CSamp.cluster_centroids(ratio = 0.25, dataOut = 'ClusterCentroid_4')
-CSamp.cluster_centroids(ratio = 0.5, dataOut = 'ClusterCentroid_2')
-
-CSamp.SMOTE(ratio = 1, dataOut='Smote_Tomek_1', dataIn = 'Tomeklinks')
-CSamp.SMOTE(ratio = 0.5, dataOut='Smote_Tomek_2', dataIn = 'Tomeklinks')
-CSamp.SMOTE(ratio = 0.25, dataOut='Smote_Tomek_4', dataIn = 'Tomeklinks')
-CSamp.SMOTE(ratio = 0.125, dataOut='Smote_Tomek_8', dataIn = 'Tomeklinks')
-
-CSamp.SMOTE(ratio = 1, dataOut='Smote_NC_1', dataIn = 'Neighbourhood Cleaning')
-CSamp.SMOTE(ratio = 0.5, dataOut='Smote_NC_2', dataIn = 'Neighbourhood Cleaning')
-CSamp.SMOTE(ratio = 0.25, dataOut='Smote_NC_4', dataIn = 'Neighbourhood Cleaning')
-CSamp.SMOTE(ratio = 0.125, dataOut='Smote_NC_8', dataIn = 'Neighbourhood Cleaning')
-
-#CSamp.SMOTE(ratio = 1, dataOut='Smote_NM_1', dataIn = 'NearMiss')
-#CSamp.SMOTE(ratio = 0.5, dataOut='Smote_NM_2', dataIn = 'NearMiss')
-#CSamp.SMOTE(ratio = 0.125, dataOut='Smote_NM_8', dataIn = 'NearMiss')
-#CSamp.SMOTE(ratio = 0.25, dataOut='Smote_NM_4', dataIn = 'NearMiss')
-
-CSamp.SMOTE(ratio = 1, dataOut='Smote_CC_1_8', dataIn = 'ClusterCentroid_8')
-CSamp.SMOTE(ratio = 0.5, dataOut='Smote_CC_2_8', dataIn = 'ClusterCentroid_8')
-CSamp.SMOTE(ratio = 0.25, dataOut='Smote_CC_4_8', dataIn = 'ClusterCentroid_8')
-
-CSamp.SMOTE(ratio = 0.5, dataOut='Smote_CC_2_8', dataIn = 'ClusterCentroid_4')
+CSamp.SMOTE(ratio = 0.4, dataOut='SMOTE')
+CSamp.neigbourhood_cleaning(dataIn='SMOTE', dataOut='1')
+CSamp.near_miss(ratio = 0.7, dataIn = 'SMOTE', dataOut = '2')
+CSamp.near_miss(ratio = 0.8, dataIn = 'SMOTE', dataOut = '3')
+CSamp.near_miss(ratio = 0.9, dataIn = 'SMOTE', dataOut = '4')
+CSamp.near_miss(ratio = 1.0, dataIn = 'SMOTE', dataOut = '5')
+CSamp.cluster_centroids(ratio = 0.8, dataIn = 'SMOTE', dataOut = '6')
+CSamp.cluster_centroids(ratio = 0.9, dataIn = 'SMOTE', dataOut = '7')
+CSamp.cluster_centroids(ratio = 1.0, dataIn = 'SMOTE', dataOut = '8')
 
 
 CSamp.logistic_regression()
 CSamp.test_model()
 
+CSamp.Bar_Plot(external_data=os.path.join(combsampling,'mean_models.xlsx'), data = 'True')
+
 CSamp.save_dataset('combsampling')
 CSamp.save_results('combsampling')
-CSamp.save_models()
+#CSamp.save_models()
+CSamp.PCA_plot()
 
 """
-#Splitting Dataset
-SSamp = sm.Sampling(WCC_Survey, splitsampling)
-SSamp.normalise()
-SSamp.impute()
-SSamp.train_test_split(0.3)
-
-SSamp.data_split(ratio = 0.125, dataOut = 'split_data_8')
-SSamp.data_split(ratio = 0.25, dataOut = 'split_data_4')
-SSamp.data_split(ratio = 0.5, dataOut = 'split_data_2')
-
-SSamp.neigbourhood_cleaning()
-SSamp.SMOTE(ratio = 0.25, dataOut='Smote_NC_4', dataIn = 'Neighbourhood Cleaning')
-SSamp.data_split(ratio = 0.25, dataIn = 'Smote_NC_4', dataOut='Smote_NC_4')
-SSamp.SMOTE(ratio = 0.125, dataOut='Smote_NC_8', dataIn = 'Neighbourhood Cleaning')
-SSamp.data_split(ratio = 0.125, dataIn = 'Smote_NC_8', dataOut='Smote_NC_8')
-SSamp.SMOTE(ratio = 0.5, dataOut='Smote_NC_2', dataIn = 'Neighbourhood Cleaning')
-SSamp.data_split(ratio = 0.5, dataIn = 'Smote_NC_2', dataOut='Smote_NC_2')
-
-SSamp.tomek_links()
-SSamp.SMOTE(ratio = 0.25, dataOut='Smote_Tomek_4', dataIn = 'Tomeklinks')
-SSamp.data_split(ratio = 0.25, dataIn = 'Smote_Tomek_4', dataOut='Smote_Tomek_4')
-SSamp.SMOTE(ratio = 0.125, dataOut='Smote_Tomek_8', dataIn = 'Tomeklinks')
-SSamp.data_split(ratio = 0.125, dataIn = 'Smote_Tomek_8', dataOut='Smote_Tomek_4')
-SSamp.SMOTE(ratio = 0.5, dataOut='Smote_Tomek_2', dataIn = 'Tomeklinks')
-SSamp.data_split(ratio = 0.5, dataIn = 'Smote_Tomek_2', dataOut='Smote_Tomek_4')
-
-SSamp.logistic_regression()
-SSamp.test_model()
-
-SSamp.save_dataset('splitsampling')
-SSamp.save_results('splitsampling')
-
-SSamp.save_models()
-
-
-
-
-
-
-
 
 
